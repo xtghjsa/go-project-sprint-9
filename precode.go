@@ -15,7 +15,6 @@ import (
 // сгенерированных чисел.
 func Generator(ctx context.Context, ch chan<- int64, fn func(int64)) {
 	var num int64 = 1
-loop:
 	for {
 		select {
 		case ch <- num:
@@ -23,20 +22,18 @@ loop:
 			num++
 		case <-ctx.Done():
 			close(ch)
-			break loop
+			return
 		}
 	}
 }
 
-var wg sync.WaitGroup
-
 // Worker читает число из канала in и пишет его в канал out.
 func Worker(in <-chan int64, out chan<- int64) {
-	defer wg.Done()
 	for v := range in {
 		out <- v
 		time.Sleep(time.Millisecond * 1)
 	}
+	close(out)
 }
 
 func main() {
@@ -66,6 +63,8 @@ func main() {
 	amounts := make([]int64, NumOut)
 	// chOut — канал, в который будут отправляться числа из горутин `outs[i]`
 	chOut := make(chan int64, NumOut)
+
+	var wg sync.WaitGroup
 
 	// 4. Собираем числа из каналов outs
 	for j := 0; j < NumOut; j++ {
